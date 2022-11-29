@@ -14,8 +14,8 @@ import plotly.express as px
 from PIL import Image
 
 st.set_page_config(layout="wide")
-st.title(':thinking_face: ギジミエ@東京都中央区')
-st.markdown('　**Gijimie**は、あなたが関心のあるキーワードについて「議会でどんな議論がされてるのかな？」「どの議員さんが関心持っているのかな」をざっくり可視化するサービスです。')
+st.title(':thinking_face: 議事録見える化@東京都中央区')
+st.markdown('　**議事録見える化@東京都中央区**は、あなたが関心のあるキーワードについて「議会でどんな議論がされてるのかな？」「どの議員さんが関心持っているのかな」をざっくり可視化するサービスです。')
 st.markdown('　対象は東京都中央区議会、期間は2015年5月から2022年5月まで。')
 image = Image.open('jigazo.png')
 
