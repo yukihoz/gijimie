@@ -20,9 +20,11 @@ st.markdown('　対象は東京都中央区議会、期間は2015年5月から20
 image = Image.open('jigazo.png')
 
 logs = pd.read_csv('./gijiroku2015-2022.5.csv', encoding='UTF-8')#dataframeとしてcsvを読み込み
-
+logs["回数"] = 1
+moji = logs[["年度","文字数","回数"]]
+moji = moji.groupby('年度', as_index=False).sum()
 st.header(':fork_and_knife: 検索条件')
-logs2 = logs[["年月日","人分類","内容分類","質問","回答","会議","内容","年度","文字数"]]
+logs2 = logs[["年月日","人分類","内容分類","質問","回答","会議","内容","年度","文字数","回数"]]
 
 option_selected_l = st.text_input('あなたが調べてみたいキーワードを入力してね。初期値は「待機児童」になってます。', '待機児童')
 
@@ -38,16 +40,15 @@ end_year = int(end_year)
 
 #文字列の抽出
 selected_l = logs2[(logs2['内容'].str.contains(option_selected_l)) & (logs2['年度'] >= start_year) & (logs2['年度'] <= end_year)]
-
 giins = logs[["人分類","年度"]]
 giins = giins.drop_duplicates()
 giins = giins[giins['人分類'] != "0"]
 giins = giins[giins['人分類'] != "-"]
-giins = giins[(giins['年度'] >= start_year) & (giins['年度'] <= end_year)]
-giins = giins[["人分類"]]
+giins_year = giins[(giins['年度'] >= start_year) & (giins['年度'] <= end_year)]
+giins = giins_year[["人分類"]]
 giins = giins.drop_duplicates()
-
-selected_l_moji = selected_l[["年月日","人分類","内容分類","質問","回答","内容","文字数"]]
+selected_l_moji = selected_l[["年度","年月日","人分類","内容分類","質問","回答","内容","文字数","回数"]]
+selected_l_moji_g = selected_l[["年月日","人分類","内容分類","質問","回答","内容","文字数","回数"]]
 
 st.header(':doughnut: どんな議論がされてるのかな？')
 st.markdown('キーワードが含まれる発言を解析して、ざっくり1枚の画像にしてます。だいたい、どんな議論がされているのかを掴めます。')
@@ -83,48 +84,101 @@ wc.to_file('wc.png')
 st.image('wc.png')
 st.markdown('補足：更新するたびに表示位置などはビミョーに変わります。対象は名詞だけで、「それぞれ」や「問題」など、頻繁に使われるけど中身のないキーワードは除外してます。')
 
+st.header(':cookie: トレンドはどうなってる？')
+st.markdown('キーワードが出てきた回数の推移を年度単位で見てみたもの。なんとなくそのキーワードのトレンドが分かります。')
+
+#st.markdown('カテゴリとしては以下の3つに分かれています「質問」「回答」キーワードが含まれる発言内容の文字列をカウントして、ランキング化したものです。')
+logs_contents_temp_moji1 = selected_l_moji.groupby(['人分類','内容分類','年度'], as_index=False).sum()# 年度ごとの文字数
+logs_contents_temp_moji2 = selected_l_moji_g.groupby(['人分類','内容分類'], as_index=False).sum()# 年度ごとの文字数
+logs_contents_temp_moji1 = logs_contents_temp_moji1[logs_contents_temp_moji1['内容分類'] !='議長/委員長']
+logs_chart = pd.merge(giins_year, logs_contents_temp_moji1, how="left", on =['人分類', '年度'])
+logs_chart = logs_chart.groupby('年度', as_index=False).sum()
+logs_chart = logs_chart[["年度","文字数","回数"]]
+logs_chart = pd.merge(logs_chart, moji, how="left", on =['年度'])
+logs_chart["スコア"] = round(logs_chart["回数_x"]/logs_chart["回数_y"]*1000,2)
+#st.area_chart(logs_chart)
+#st.line_chart(logs_chart)
+#st.plotly_chart(logs_chart, use_container_width=True)
+#logs_chart = logs_chart.fillna({'内容分類': '回答', '文字数': 0})
+#logs_chart
+#st.bar_chart(logs_chart, x="年度", y="文字数", use_container_width=True)
+fig2 = px.line(logs_chart, x='年度', y='スコア',height=900, width=900, text='スコア')
+fig2.update_yaxes(automargin=True)
+fig2.update_xaxes(automargin=True,
+                tickvals=[2014,2015,2016,2017,2018,2019,2020,2021,2022],
+                )
+
+fig2.update_layout(
+    xaxis_title="",
+    #yaxis_title="",
+    font=dict(
+        size=14
+    )
+)
+
+fig2.update_traces(
+#    width=0.8,
+#    marker_line_width=0,
+    textfont_size=20,
+    textposition="top right",
+    line = dict(
+        width = 4,
+        color = '#00b894'
+    ),
+    marker = dict(
+        size = 14
+    )
+#    textangle=45, 
+#    cliponaxis=False
+    )
+fig2
+st.markdown('※ 年度内でのすべての議事録での発言のうち、そのキーワードが含まれた発言の割合をスコア化したものです（単純に数だけ拾うとブレるので）。')
+
 st.header(':coffee: どの議員さんが関心持ってるのかな？')
 st.markdown('キーワードが含まれる発言文字数をカウントして、ランキング化したもの。どの議員がそのキーワードに熱心なのかを測るのに使えます。')
 
-#st.markdown('カテゴリとしては以下の3つに分かれています「質問」「回答」キーワードが含まれる発言内容の文字列をカウントして、ランキング化したものです。')
-logs_contents_temp_moji = selected_l_moji.groupby(['人分類','内容分類'], as_index=False).sum()# 年度ごとの文字数
-logs_contents_temp_moji = logs_contents_temp_moji[logs_contents_temp_moji['内容分類'] !='議長/委員長']
-logs_graph = pd.merge(giins, logs_contents_temp_moji, how="left", on = "人分類")
-
+logs_graph = pd.merge(giins, logs_contents_temp_moji2, how="left", on = "人分類")
 logs_graph = logs_graph.fillna({'内容分類': '回答', '文字数': 0})
 
-fig = px.bar(logs_graph, x='文字数', y='人分類', color='内容分類', color_discrete_map={'議長/委員長': '#7ed6df','回答': '#ff7979', '質問': '#74b9ff'}, text='文字数',height=900, width=900, orientation='h')
+fig = px.bar(logs_graph, x='文字数', y='人分類', color='内容分類', color_discrete_map={'回答': '#ff7979', '質問': '#74b9ff'}, text='文字数',height=900, width=900, orientation='h')
 #fig.update_layout(barmode='stack', xaxis={'文字数':'category ascending'})
 fig.update_yaxes(automargin=True)
 fig.update_xaxes(automargin=True)
 fig.update_layout(
     barmode='stack', 
     yaxis={'categoryorder':'total ascending'},
-    legend=dict(xanchor='right',
-                        yanchor='bottom',
-                        x=0.95,
-                        y=0.05,
-                        bgcolor="white",
-                        bordercolor="white",
-                        borderwidth=2),
+    #legend=dict(xanchor='right',
+    #                    yanchor='bottom',
+    #                    x=0.95,
+    #                    y=0.05,
+    #                    bgcolor="white",
+    #                    bordercolor="white",
+    #                    borderwidth=2),
     font=dict(
         #family="Courier New, monospace",
-        size=18,
+        size=14,
     )
     )
+
+fig.update_layout(
+    #xaxis_title="",
+    yaxis_title="",
+    font=dict(
+        size=14
+    )
+)
+
+
 fig.update_traces(
     width=1,
     marker_line_width=0,
-    textfont_size=18, 
+    textfont_size=20, 
     textangle=0, 
     #textposition="outside", 
     cliponaxis=False
     )
 fig
-st.markdown('「質問」：議員による質問内容、「回答」：議員の質問に対する区長などの回答')
-
-
-
+st.markdown('※ 「質問」：議員による質問内容、「回答」：議員の質問に対する区長などの回答')
 
 st.header(':cake: 結果の詳細')
 st.markdown('解析の対象になった発言の詳細を見たいときはこちらをご覧ください。')
