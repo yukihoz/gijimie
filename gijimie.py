@@ -26,7 +26,11 @@ moji = moji.groupby('年度', as_index=False).sum()
 st.header(':fork_and_knife: 検索条件')
 logs2 = logs[["年月日","人分類","内容分類","質問","回答","会議","内容","年度","文字数","回数"]]
 
-option_selected_l = st.text_input('あなたが調べてみたいキーワードを入力してね。初期値は「待機児童」になってます。', '待機児童')
+# 議員の名前をURLに持ってたらその人のWCを表示させ、なければランダム表示させる
+query_params = st.experimental_get_query_params() # URLにあるクエリをqueary_paramsとして読み込む
+if query_params: 
+    option_selected_l = query_params.get('words', None)[0]
+else:option_selected_l = st.text_input('あなたが調べてみたいキーワードを入力してね。初期値は「待機児童」になってます。',"待機児童")
 
 #st.markdown(' ##### :date:「年度」での絞り込み')
 with st.expander("■「年度」での絞り込み", False):
