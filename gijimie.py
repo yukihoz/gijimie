@@ -19,6 +19,20 @@ st.markdown('　**議事録見える化@東京都中央区**は、あなたが�
 st.markdown('　対象は東京都中央区議会、期間は2015年5月から2022年5月まで。')
 image = Image.open('jigazo.png')
 
+#議事録キャッシュ
+@st.cache_data
+def load_csv(file_path, encoding="utf-8"):
+    return pd.read_csv(file_path, encoding=encoding)
+
+# データフィルタリング
+@st.cache_data
+def filter_logs(logs, keyword, start_year, end_year):
+    return logs[
+        (logs['内容'].str.contains(keyword)) &
+        (logs['年度'] >= start_year) &
+        (logs['年度'] <= end_year)
+    ]
+
 logs = pd.read_csv('./gijiroku2015-2022.5.csv', encoding='UTF-8')#dataframeとしてcsvを読み込み
 logs["回数"] = 1
 moji = logs[["年度","文字数","回数"]]
